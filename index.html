@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; min-height: 100vh; padding: 20px; color: #eaeaea; }
+        .container { max-width: 480px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 24px; }
+        header h1 { font-size: 24px; font-weight: 700; color: #e94560; margin-bottom: 4px; }
+        header .date { font-size: 14px; color: #a0a0a0; }
+        .add-habit { display: flex; gap: 12px; margin-bottom: 24px; }
+        .add-habit input { flex: 1; padding: 14px 16px; border: 2px solid #0f3460; border-radius: 12px; background: #16213e; color: #eaeaea; font-size: 16px; outline: none; }
+        .add-habit input:focus { border-color: #e94560; }
+        .add-habit button { width: 50px; border: none; border-radius: 12px; background: #e94560; color: white; font-size: 24px; cursor: pointer; }
+        .habit-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+        .habit-card { background: #16213e; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; }
+        .habit-card input[type="checkbox"] { width: 24px; height: 24px; accent-color: #4ecca3; cursor: pointer; }
+        .habit-card .habit-name { flex: 1; font-size: 16px; }
+        .habit-card .streak { font-size: 14px; font-weight: 700; color: #4ecca3; }
+        .habit-card .delete-btn { width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: #a0a0a0; cursor: pointer; }
+        .habit-card .delete-btn:hover { background: #e94560; color: white; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #a0a0a0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>Habit Tracker</h1><div class="date" id="currentDate"></div></header>
+        <div class="add-habit"><input type="text" id="habitInput" placeholder="New habit..." maxlength="50"><button id="addBtn">+</button></div>
+        <div class="habit-list" id="habitList"></div>
+    </div>
+    <script>
+        const STORAGE_KEY = 'simpleHabitTracker';
+        let habits = []; let today = new Date().toISOString().split('T')[0];
+        function getDateString(date) { return date.toISOString().split('T')[0]; }
+        function loadHabits() { const s = localStorage.getItem(STORAGE_KEY); if (s) habits = JSON.parse(s); }
+        function saveHabits() { localStorage.setItem(STORAGE_KEY, JSON.stringify(habits)); }
+        function addHabit(name) {
+            if (!name.trim()) return;
+            habits.push({ id: Date.now().toString(36), name: name.trim(), streak: 0, completedDates: [] });
+            saveHabits(); renderHabits();
+        }
+        function removeHabit(id) { habits = habits.filter(h => h.id !== id); saveHabits(); renderHabits(); }
+        function toggleHabit(id) {
+            const h = habits.find(x => x.id === id);
+            if (!h) return;
+            if (h.completedDates.includes(today)) { h.completedDates = h.completedDates.filter(d => d !== today); updateStreak(h); }
+            else { h.completedDates.push(today); h.streak++; }
+            saveHabits(); renderHabits();
+        }
+        function updateStreak(habit) {
+            let streak = 0; const dates = habit.completedDates.sort(); let checkDate = new Date(today);
+            for (let i = dates.length - 1; i >= 0; i--) {
+                if (dates.includes(getDateString(checkDate))) { streak++; checkDate.setDate(checkDate.getDate() - 1); } else break;
+            }
+            habit.streak = streak;
+        }
+        function renderHabits() {
+            const list = document.getElementById('habitList');
+            list.innerHTML = habits.length === 0 ? '<div class="empty-state"><p>No habits yet. Add your first habit!</p></div>' : '';
+            habits.forEach(h => {
+                const isDone = h.completedDates.includes(today);
+                list.innerHTML += `<div class="habit-card"><input type="checkbox" ${isDone?'checked':''} onchange="toggleHabit('${h.id}')"><span class="habit-name">${h.name}</span><span class="streak">🔥 ${h.streak}</span><button class="delete-btn" onclick="removeHabit('${h.id}')">✕</button></div>`;
+            });
+        }
+        document.getElementById('addBtn').addEventListener('click', () => { addHabit(document.getElementById('habitInput').value); document.getElementById('habitInput').value = ''; });
+        document.getElementById('habitInput').addEventListener('keypress', e => { if(e.key==='Enter'){addHabit(e.target.value);e.target.value='';}});
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+        loadHabits(); habits.forEach(updateStreak); saveHabits(); renderHabits();
+    </script>
+</body>
+</html>
